@@ -163,6 +163,14 @@ async function verify() {
   try { proof = JSON.parse(raw); }
   catch (e) { return alert('Невалидный JSON: ' + e.message); }
 
+  // Защита: отказываемся работать с приватным файлом (там реальные email)
+  const hasPrivate = proof._private_winners_emails
+    || (proof.entries && proof.entries.some(e => e.email))
+    || (proof.winners && proof.winners.some(w => w.email));
+  if (hasPrivate) {
+    return alert('⚠️ В вставленном JSON найдены реальные email — это приватный файл организатора, не для публичной проверки. Попроси публичный proof.json (там только хэши).');
+  }
+
   const checks = [];
 
   // Check 1: seed -> commit_hash
