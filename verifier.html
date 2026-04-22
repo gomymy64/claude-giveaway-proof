@@ -183,7 +183,7 @@ async function verify() {
     detail: `SHA-256(entries) = ${computedDbHash}<br>published db_hash = ${proof.db_hash}`
   });
 
-  // Check 3: reproduce algorithm
+  // Check 3: reproduce algorithm — полностью, включая tickets/prize/round
   const entries = [...proof.entries];
   const reproducedWinners = [];
   for (let r = 0; r < proof.winners.length; r++) {
@@ -197,14 +197,27 @@ async function verify() {
       if (target < cum) { winnerIdx = i; break; }
     }
     const winner = entries[winnerIdx];
-    reproducedWinners.push(winner.email_hash);
+    reproducedWinners.push({
+      email_hash: winner.email_hash,
+      tickets: winner.weight,
+      round: r + 1,
+      prize: r === proof.winners.length - 1 ? 'Claude Code Max' : 'Claude Pro'
+    });
     entries.splice(winnerIdx, 1);
   }
-  const algoOk = proof.winners.every((w, i) => w.email_hash === reproducedWinners[i]);
+  const mismatches = [];
+  proof.winners.forEach((w, i) => {
+    const rep = reproducedWinners[i];
+    if (w.email_hash !== rep.email_hash) mismatches.push(`раунд ${i+1}: email_hash`);
+    if (w.tickets !== rep.tickets) mismatches.push(`раунд ${i+1}: tickets (${w.tickets} vs ${rep.tickets})`);
+    if (w.round !== rep.round) mismatches.push(`раунд ${i+1}: round`);
+    if (w.prize !== rep.prize) mismatches.push(`раунд ${i+1}: prize`);
+  });
+  const algoOk = mismatches.length === 0;
   checks.push({
     ok: algoOk,
-    title: 'Алгоритм воспроизводит тех же победителей',
-    detail: algoOk ? 'Все ' + proof.winners.length + ' раундов совпадают' : 'Хэши победителей не совпали с воспроизведёнными'
+    title: 'Алгоритм воспроизводит тех же победителей (включая tickets, prize, round)',
+    detail: algoOk ? 'Все ' + proof.winners.length + ' раундов совпадают полностью' : 'Расхождения: ' + mismatches.join('; ')
   });
 
   // Render
