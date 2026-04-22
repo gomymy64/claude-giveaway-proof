@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Проверка розыгрыша Claude — Mastodont AI Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg-2: #11111a;
+    --panel: #16161f;
+    --panel-2: #1d1d28;
+    --border: #2a2a38;
+    --text: #e8e8f0;
+    --text-dim: #8a8aa0;
+    --accent: #da7756;
+    --gold: #f5c253;
+    --green: #22c55e;
+    --red: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse at 20% 0%, rgba(218,119,86,0.12), transparent 50%);
+    pointer-events: none;
+  }
+  .container { position: relative; max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 40px; font-weight: 900; letter-spacing: -0.03em; margin-bottom: 8px; }
+  h1 span { background: linear-gradient(135deg, var(--accent), var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { color: var(--text-dim); font-size: 16px; margin-bottom: 32px; line-height: 1.6; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+  .panel h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .panel-hint { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.5; }
+  label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+  input[type=text], textarea {
+    width: 100%; padding: 14px 16px;
+    background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    resize: vertical;
+  }
+  input[type=text]:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  textarea { min-height: 140px; }
+  button {
+    padding: 14px 28px;
+    background: linear-gradient(135deg, var(--accent), #cc785c);
+    border: 0; border-radius: 12px;
+    color: white; font-family: inherit; font-weight: 700; font-size: 15px;
+    cursor: pointer; transition: all 0.2s;
+    margin-top: 12px;
+  }
+  button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(218,119,86,0.3); }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  button.ghost:hover { border-color: var(--accent); background: var(--panel-2); }
+  .result { margin-top: 16px; }
+  .check { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; margin-bottom: 8px; font-size: 14px; }
+  .check.ok { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: var(--green); }
+  .check.fail { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--red); }
+  .check-icon { font-size: 20px; }
+  .hash { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--gold); word-break: break-all; }
+  .winner-row { display: flex; justify-content: space-between; padding: 10px 14px; background: var(--bg-2); border-radius: 8px; margin-bottom: 6px; font-size: 13px; }
+  .winner-row b { color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+  .self-check { margin-top: 8px; padding: 14px; background: var(--bg-2); border-radius: 10px; font-size: 13px; line-height: 1.6; }
+  .self-check.found { border: 1px solid var(--green); color: var(--green); }
+  .self-check.notfound { border: 1px solid var(--red); color: var(--red); }
+  code { background: var(--bg-2); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  ol { margin-left: 20px; line-height: 1.8; color: var(--text-dim); font-size: 14px; }
+  ol li { margin-bottom: 8px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>Проверка <span>розыгрыша Claude</span></h1>
+  <p class="sub">
+    Независимый verifier для розыгрыша. Убеждается что организатор не подменил seed и не изменил базу участников.
+    Алгоритм детерминированный — из одного seed'а всегда получаются одни и те же победители.
+  </p>
+
+  <div class="panel">
+    <h2>📋 Как проверить</h2>
+    <ol>
+      <li>Получи у организатора <b>proof.json</b> (в ТГ-канале после розыгрыша)</li>
+      <li>Вставь содержимое в поле ниже</li>
+      <li>Нажми <b>"Проверить"</b> — скрипт прогонит алгоритм заново</li>
+      <li>Если 3 галочки зелёные — розыгрыш честный</li>
+      <li>Можешь также проверить участвовал ли <b>ты лично</b> (без раскрытия email)</li>
+    </ol>
+  </div>
+
+  <div class="panel">
+    <h2>1️⃣ Вставь proof.json</h2>
+    <textarea id="proof-input" placeholder='{"commit_hash": "...", "seed": "...", "db_hash": "...", "entries": [...], "winners": [...]}'></textarea>
+    <button id="verify-btn">Проверить розыгрыш</button>
+    <button class="ghost" id="paste-demo-btn">Вставить пример</button>
+  </div>
+
+  <div class="panel hidden" id="result-panel">
+    <h2>2️⃣ Результат проверки</h2>
+    <div id="result-checks"></div>
+    <div style="margin-top: 20px;">
+      <label>Победители (хэши email)</label>
+      <div id="winners-list"></div>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="self-check-panel">
+    <h2>3️⃣ Проверь участвовал ли ты</h2>
+    <p class="panel-hint">Твой email захэшируется прямо в браузере и сравнится с хэшами в базе. Email никуда не отправляется.</p>
+    <label>Твой email</label>
+    <input type="text" id="self-email" placeholder="your@email.com" autocomplete="off">
+    <button id="self-check-btn">Найти себя</button>
+    <div id="self-result"></div>
+  </div>
+
+  <div class="panel">
+    <h2>🔬 Алгоритм (для разработчиков)</h2>
+    <p class="panel-hint">
+      Всё воспроизводимо в любом языке — SHA-256 из стандартной библиотеки:
+    </p>
+    <ol>
+      <li>Участники сортируются по email (lowercase, ASC). Каждый = <code>{email_hash: SHA-256(email), weight: 1 + кол-во_бонусов}</code></li>
+      <li>Для каждого раунда N (начиная с 0):
+        <br>• <code>h = SHA-256(seed + ":" + N)</code>
+        <br>• <code>target = int(h[0..16], 16) mod total_weight</code>
+      </li>
+      <li>Идём по отсортированному списку, накапливаем cumulative += weight, победитель = первый где <code>target &lt; cumulative</code></li>
+      <li>Удаляем победителя из пула, переходим к следующему раунду</li>
+    </ol>
+    <p class="panel-hint" style="margin-top: 12px;">
+      Первые 5 раундов — Claude Pro, шестой (последний) — Claude Code Max.
+    </p>
+  </div>
+
+  <div style="text-align: center; color: var(--text-dim); font-size: 13px; margin-top: 40px;">
+    Mastodont AI Hub · <a href="https://t.me/+JULf3S7rEBg2ZTVi" style="color: var(--accent);">Telegram</a> · <a href="https://www.youtube.com/@aiBoomb" style="color: var(--accent);">YouTube</a>
+  </div>
+
+</div>
+
+<script>
+async function sha256(text) {
+  const buf = new TextEncoder().encode(text);
+  const h = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+let currentProof = null;
+
+async function verify() {
+  const raw = document.getElementById('proof-input').value.trim();
+  if (!raw) return alert('Вставь proof.json');
+
+  let proof;
+  try { proof = JSON.parse(raw); }
+  catch (e) { return alert('Невалидный JSON: ' + e.message); }
+
+  const checks = [];
+
+  // Check 1: seed -> commit_hash
+  const computedCommit = await sha256(proof.seed);
+  const commitOk = computedCommit === proof.commit_hash;
+  checks.push({
+    ok: commitOk,
+    title: 'Seed соответствует опубликованному commit_hash',
+    detail: `SHA-256(seed) = ${computedCommit}<br>published commit_hash = ${proof.commit_hash}`
+  });
+
+  // Check 2: entries -> db_hash
+  const computedDbHash = await sha256(JSON.stringify(proof.entries));
+  const dbOk = computedDbHash === proof.db_hash;
+  checks.push({
+    ok: dbOk,
+    title: 'База участников не менялась (db_hash совпадает)',
+    detail: `SHA-256(entries) = ${computedDbHash}<br>published db_hash = ${proof.db_hash}`
+  });
+
+  // Check 3: reproduce algorithm
+  const entries = [...proof.entries];
+  const reproducedWinners = [];
+  for (let r = 0; r < proof.winners.length; r++) {
+    const h = await sha256(proof.seed + ':' + r);
+    const bigNum = BigInt('0x' + h.slice(0, 16));
+    const totalWeight = entries.reduce((s, e) => s + e.weight, 0);
+    const target = Number(bigNum % BigInt(totalWeight));
+    let cum = 0, winnerIdx = -1;
+    for (let i = 0; i < entries.length; i++) {
+      cum += entries[i].weight;
+      if (target < cum) { winnerIdx = i; break; }
+    }
+    const winner = entries[winnerIdx];
+    reproducedWinners.push(winner.email_hash);
+    entries.splice(winnerIdx, 1);
+  }
+  const algoOk = proof.winners.every((w, i) => w.email_hash === reproducedWinners[i]);
+  checks.push({
+    ok: algoOk,
+    title: 'Алгоритм воспроизводит тех же победителей',
+    detail: algoOk ? 'Все ' + proof.winners.length + ' раундов совпадают' : 'Хэши победителей не совпали с воспроизведёнными'
+  });
+
+  // Render
+  const panel = document.getElementById('result-panel');
+  const box = document.getElementById('result-checks');
+  box.innerHTML = '';
+  checks.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'check ' + (c.ok ? 'ok' : 'fail');
+    el.innerHTML = `
+      <div class="check-icon">${c.ok ? '✅' : '❌'}</div>
+      <div>
+        <div style="font-weight: 700;">${c.title}</div>
+        <div class="hash" style="margin-top: 4px; font-size: 10px; opacity: 0.7;">${c.detail}</div>
+      </div>
+    `;
+    box.appendChild(el);
+  });
+
+  const wList = document.getElementById('winners-list');
+  wList.innerHTML = '';
+  proof.winners.forEach(w => {
+    const el = document.createElement('div');
+    el.className = 'winner-row';
+    el.innerHTML = `
+      <span>${w.prize} · раунд ${w.round} · ${w.tickets} билет${w.tickets === 1 ? '' : 'ов'}</span>
+      <b>${w.email_hash.slice(0, 16)}...</b>
+    `;
+    wList.appendChild(el);
+  });
+
+  panel.classList.remove('hidden');
+  document.getElementById('self-check-panel').classList.remove('hidden');
+  currentProof = proof;
+  panel.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function selfCheck() {
+  if (!currentProof) return;
+  const email = document.getElementById('self-email').value.trim().toLowerCase();
+  if (!email) return;
+  const hash = await sha256(email);
+  const entry = currentProof.entries.find(e => e.email_hash === hash);
+  const box = document.getElementById('self-result');
+  if (entry) {
+    const won = currentProof.winners.find(w => w.email_hash === hash);
+    box.className = 'self-check found';
+    box.innerHTML = won
+      ? `🎉 Ты в базе (${entry.weight} билет${entry.weight === 1 ? '' : 'ов'}) и <b>выиграл ${won.prize}</b> в раунде ${won.round}! Жди письма от организатора.`
+      : `✅ Ты участвовал! Твой хэш найден в базе, было ${entry.weight} билет${entry.weight === 1 ? '' : 'ов'}. В этот раз не выиграл — следующий розыгрыш скоро.`;
+  } else {
+    box.className = 'self-check notfound';
+    box.innerHTML = `❌ Твой email не найден в опубликованной базе. Возможно ты не подавал заявку, либо ввёл email с другим регистром.`;
+  }
+}
+
+document.getElementById('verify-btn').addEventListener('click', verify);
+document.getElementById('self-check-btn').addEventListener('click', selfCheck);
+document.getElementById('self-email').addEventListener('keypress', e => { if (e.key === 'Enter') selfCheck(); });
+
+document.getElementById('paste-demo-btn').addEventListener('click', () => {
+  document.getElementById('proof-input').value = JSON.stringify({
+    version: 'mastodont-giveaway-v1',
+    timestamp: '2026-04-22T10:00:00Z',
+    participants_count: 3,
+    commit_hash: 'demo',
+    db_hash: 'demo',
+    seed: 'demo',
+    entries: [],
+    winners: []
+  }, null, 2);
+  alert('Это пустой шаблон. Замени на реальный proof.json от организатора.');
+});
+</script>
+</body>
+</html>
